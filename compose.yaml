@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: farhadbaig/python-docker-app:latest
     container_name: flask-app
     restart: unless-stopped
     ports:
