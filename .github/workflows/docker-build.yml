@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build Push and Deploy
 
 on:
   push:
@@ -26,3 +26,38 @@ jobs:
       - name: Push Docker image
         run: |
           docker push farhadbaig/python-docker-app:latest
+
+      - name: Configure SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 host to known hosts
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          ssh ubuntu@"$EC2_HOST" << 'EOF'
+            cd ~/python-docker-app
+
+            echo "Pulling latest application image..."
+            docker compose pull app
+
+            echo "Updating application container..."
+            docker compose up -d app
+
+            echo "Waiting for application..."
+            sleep 5
+
+            echo "Running health check..."
+            curl -f http://localhost/health
+
+            echo "Checking containers..."
+            docker compose ps
+          EOF
